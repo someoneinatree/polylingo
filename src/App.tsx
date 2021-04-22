@@ -193,6 +193,50 @@ const NUM = styled.span`
   min-width: 2em;
 `
 
+const AR_2_EN: {[index: string]: string} = {
+  'ض': 'dh',
+  'ص': 'S',
+  'ث': 'sh',
+  'ق': 'f',
+  'ف': 'q',
+  'غ': 'gh',
+  'ع': '3',
+  'ه': 'h',
+  'خ': 'kh',
+  'ح': 'H',
+  'ج': 'j',
+  'د': 'd',
+  'ط': 'T',
+  'ك': 'k',
+  'م': 'm',
+  'ن': 'n',
+  'ت': 't',
+  'ا': 'aa',
+  'ل': 'l',
+  'ب': 'b',
+  'ي': 'ii',
+  'س': 's',
+  'ش': 'sh',
+  'ظ': 'D',
+  'ز': 'z',
+  'و': 'w',
+  'ة': 'at',
+  'ى': 'a',
+  'ر': 'r',
+  'ؤ': 'u',
+  'ء': 'h',
+  'ئا': 'k',
+  'ً': 'n'
+}
+
+function transliterate(arabic: String) {
+  let transliteration = ''
+  arabic.split('').forEach(char => {
+    transliteration = `${transliteration}${AR_2_EN[char]}`
+  })
+  return transliteration
+}
+
 function App() {
   const [dictIndex, setDictIndex] = useState<number>(-1)
   const [input, setInput] = useState<string>('')
@@ -230,6 +274,7 @@ function App() {
       <br />
       <br />
       <WORD>{word}</WORD>
+      <WORD style={{ color: '#888' }}>{transliterate(word)}</WORD>
       <Progress type="range" min={0} max={word.length} value={input.length} />
       <br />
       <br />
