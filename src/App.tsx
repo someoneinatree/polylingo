@@ -88,7 +88,7 @@ const INPUT = styled.textarea<InputProps>`
   vertical-align: middle;
   ${props => props.isCorrect && `background: #6b5;`}
   &:empty {
-    background: #666;
+    background: #999;
   }
 `
 
@@ -237,6 +237,10 @@ function transliterate(arabic: String) {
   return transliteration
 }
 
+const SECTION = styled.section`
+  padding: .5em;
+`
+
 function App() {
   const [dictIndex, setDictIndex] = useState<number>(-1)
   const [input, setInput] = useState<string>('')
@@ -257,39 +261,41 @@ function App() {
   return (<APP>
     <SCREEN>
       <Title><kbd>🇬🇧 en</kbd> -&gt; <kbd>🇸🇩 ar</kbd></Title>
-      <NEXT style={{ opacity: dictIndex ? 1 : 0 }} onClick={() => [setDictIndex(0), setInput('')]}>⇤</NEXT>
-      <NEXT onClick={() => [setDictIndex(dictIndex - 1), setInput('')]}>⇠</NEXT>
-      <NUM>{dictIndex}</NUM>
-      <input type="range" min={0} max={englishWords.length - 1} value={dictIndex} onChange={e => [setDictIndex(Number.parseInt(e.target.value)), setInput('')]} />
-      {dictIndex < (englishWords.length - 1) ? <NEXT onClick={() => [setDictIndex(dictIndex + 1), setInput('')]}>⇢</NEXT> : null}
-      <br />
-      <br />
-      <DICT placeholder="select a word" onChange={e => setDictIndex(Number.parseInt(e.target.value))} value={dictIndex}>
-        <option value="-1"></option>
-        {englishWords.map((en, index) => (<option value={index}>
-          {(Object.entries(EMOJIS).find(([entryEmoji, entryWords]) => entryWords.includes(en)) || [''])[0] + ' '}
-          {en}
-        </option>))}
-      </DICT>
-      <br />
-      <br />
-      <WORD>{word}</WORD>
-      <WORD style={{ color: '#888' }}>{transliterate(word)}</WORD>
-      <Progress type="range" min={0} max={word.length} value={input.length} />
-      <br />
-      <br />
-      <INPUT value={input} onChange={e => setInput(e.target.value)} isCorrect={input === word} />
-      {input?.length
-        ? (input === word
-            ? <NEXT onClick={() => [setDictIndex(dictIndex + 1), setInput('')]}>✅</NEXT>
-            : <NEXT onClick={() => setInput('')}>❌</NEXT>)
-        : null}
+      <SECTION>
+        <DICT placeholder="select a word" onChange={e => setDictIndex(Number.parseInt(e.target.value))} value={dictIndex}>
+          <option value="-1"></option>
+          {englishWords.map((en, index) => (<option value={index}>
+            {(Object.entries(EMOJIS).find(([entryEmoji, entryWords]) => entryWords.includes(en)) || [''])[0] + ' '}
+            {en}
+          </option>))}
+        </DICT>
+      </SECTION>
+      <SECTION>
+        <NEXT style={{ opacity: dictIndex ? 1 : 0 }} onClick={() => [setDictIndex(0), setInput('')]}>⇤</NEXT>
+        <NEXT onClick={() => [setDictIndex(dictIndex - 1), setInput('')]}>⇠</NEXT>
+        <NUM>{dictIndex}</NUM>
+        <input type="range" min={0} max={englishWords.length - 1} value={dictIndex} onChange={e => [setDictIndex(Number.parseInt(e.target.value)), setInput('')]} />
+        {dictIndex < (englishWords.length - 1) ? <NEXT onClick={() => [setDictIndex(dictIndex + 1), setInput('')]}>⇢</NEXT> : null}
+      </SECTION>
+      <SECTION>
+        <WORD>{word}</WORD>
+        <WORD style={{ color: '#888' }}>{transliterate(word)}</WORD>
+        <Progress type="range" min={0} max={word.length} value={input.length} />
+      </SECTION>
+      <SECTION>
+        <INPUT value={input} onChange={e => setInput(e.target.value)} isCorrect={input === word} />
+        {input?.length
+          ? (input === word
+              ? <NEXT onClick={() => [setDictIndex(dictIndex + 1), setInput('')]}>✅</NEXT>
+              : <NEXT onClick={() => setInput('')}>❌</NEXT>)
+          : null}
+      </SECTION>
     </SCREEN>
-    <KBD>
+    {word ? <KBD>
       {keyRows.map(row => (<Row>
         {row.map(letter => <KEY highlight={letter === nextLetter} wordContainsLetter={word.includes(letter)} typesComplete={input.includes(letter)} onClick={() => type(letter)}>{letter}</KEY>)}
       </Row>))}
-    </KBD>
+    </KBD> : null}
 
   </APP>)
     // jigsaw
