@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
-import styled from 'styled-components'
+import styled, { keyframes, css } from 'styled-components'
+
+import Heatmap from './Heatmap'
 
 import dictionary from './dictionary'
 
@@ -10,17 +12,44 @@ const APP = styled.div`
   justify-content: center;
   justify-content: space-evenly;
   height: 100vh;
+  overflow: hidden;
   background: #000;
 `
 
-const KBD = styled.div`
+const onAppear = keyframes`
+  0% {
+    opacity: 0;
+    transform: perspective(100vw) rotate3d(-1, 0, 0,
+-90deg);
+    perspective-origin: top;
+    height: 0;
+    overflow: hidden;
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(100vw) rotate3d(-1, 0, 0,
+0);
+    perspective-origin: top;
+    height: 100%;
+  }
+`
+
+interface KbdProps {
+  readonly show: boolean;
+}
+
+  // position: fixed;
+  // bottom: 0;
+const KBD = styled.div<KbdProps>`
   display: flex;
   flex-direction: column;
   align-items: equal-spacing;
   direction: rtl;
   width: 100%;
+  animation: ${onAppear} 1s ease;
+  ${props => props.show && `background: #111; animation:;` || `height: 0; overflow: hidden;`}
+  background: #222;
 `
-// max-width: 42em;
 
 const Row = styled.div`
   display: flex;
@@ -34,28 +63,42 @@ interface ButtonProps {
 }
 
 const KEY = styled.button<ButtonProps>`
+  position: relative;
   font-size: clamp(1em, 6vw, 3em);
   line-height: 1;
-  padding: .1em .2em;
+  padding: .2em .1em;
+  margin: .05em;
   flex: 1;
   background: #eee8;
   border: none;
   cursor: pointer;
   color: #000;
   font-family: monospace;
-  ${props => props.wordContainsLetter && `background: #9d68;`}
-  ${props => props.highlight && `background: #9d6;`}
-  ${props => props.typesComplete && `background: #d2bf75;`}
   opacity: .75;
   transition: .25s ease all;
   white-space: pre;
+  border-radius: .25em;
+  &:hover {
+    opacity: 1;
+    transform: scale(1.1);
+    background: #eee;
+    z-index: 1;
+  }
   &:hover, &:focus {
     opacity: 1;
     transform: scale(1.1);
-    background: #fff;
     z-index: 1;
   }
+  ${props => props.wordContainsLetter && `background: #9d68;`}
+  ${props => props.typesComplete && `background: #666;`}
+  ${props => props.highlight && `
+  background: #9d6f;
+  &:hover, &:focus {
+    background: #9d6f;
+  }
+  `}
 `
+    // background: #fff;
 
 const SCREEN = styled.div`
   background: #000;
@@ -83,7 +126,7 @@ const INPUT = styled.textarea<InputProps>`
   height: 1em;
   padding: .5em;
   line-height: 1;
-  background: #c95;
+  background: #777;
   color: #fed;
   vertical-align: middle;
   ${props => props.isCorrect && `background: #6b5;`}
@@ -97,7 +140,7 @@ const keyRows: Array<Array<string>> = [
   ['ض','ص','ث','ق','ف','غ','ع','ه','خ','ح','ج', 'ذ','د'].reverse(),
   ['ط', 'ك', 'م', 'ن', 'ت', 'ا', 'ل', 'ب', 'ي', 'س', 'ش'],
   ['ظ', 'ز', 'و', 'ة', 'ى', 'ر', 'ؤ', 'ء', 'ئا'],
-  ['ً', ' ']
+  ['ً', ' ', 'َ']
 ]
 
 const Piece = styled.div`
@@ -106,13 +149,33 @@ const Piece = styled.div`
 `
 
 const Progress = styled.input`
-  color: red;
-  direction: rtl;
-`
+  flex: 1;
+  background: transparent;
+  box-shadow: inset 0 0 1em 1em #000b;
 
-const DICT = styled.select`
+`
+  // direction: rtl;
+
+interface DictProps {
+  readonly noValue: boolean;
+}
+
+const DICT = styled.select<DictProps>`
   font-size: 2em;
   padding: .25em;
+  max-width: 50vw;
+  background: transparent;
+  color: inherit;
+  border-color: transparent;
+  &:hover {
+    background: #222;
+    border-color: #333;
+  }
+  color: #fff;
+  & > option:first-child {
+    color: #888;
+  }
+  ${props => props.noValue && `color: #888;`}
 `
 
 const NEXT = styled.button`
@@ -181,7 +244,9 @@ const EMOJIS = {
   '️7️⃣📆': ['Sunday'],
   '🖐✌️📆': ['week'],
   '7️⃣📆': ['day'],
-  '3️⃣6️⃣5️⃣📆': ['year']
+  '3️⃣6️⃣5️⃣📆': ['year'],
+  '❤️': ['love'],
+  '💼': ['work']
 }
 
 const NUM = styled.span`
@@ -228,13 +293,17 @@ const AR_2_EN: {[index: string]: string} = {
   'ء': 'h',
   'ئا': 'k',
   'ً': 'n',
-  'ْ': '\''
+  'ْ': '\'',
+  'أ': 'ʔ',
+  'إ': 'ʔi',
+  ' ': ' ',
+  'َ': 'a'
 }
 
 function transliterate(arabic: String) {
   let transliteration = ''
   arabic.split('').forEach(char => {
-    transliteration = `${transliteration}${AR_2_EN[char]}`
+    if (char in AR_2_EN) transliteration = `${transliteration}${AR_2_EN[char]}`
   })
   return transliteration
 }
@@ -243,16 +312,39 @@ const SECTION = styled.section`
   padding: .5em;
 `
 
+const WORDS = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+`
+
+const TRANSLIT = styled.span`
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: .4em;
+  color: #bbbf;
+  opacity: 1;
+  padding: .25em;
+`
+
 function App() {
-  const [dictIndex, setDictIndex] = useState<number>(-1)
+  const { hash } = window.location
+  const hashWord = hash ? hash.slice(1).replace('+', ' ') : ''
+
+  const englishWords = Object.keys(dictionary)
+
+  const defaultDictIndex = (hashWord && englishWords.indexOf(hashWord)) || -1
+
+  const [dictIndex, setDictIndex] = useState<number>(defaultDictIndex)
   const [input, setInput] = useState<string>('')
   const nextLetterIndex = 0 || input.length
-  const englishWords = Object.keys(dictionary)
   const wordEnglish = dictIndex in englishWords && englishWords[dictIndex]
   const word = wordEnglish && dictionary[wordEnglish] || ''
-  const nextLetter = word ? word[nextLetterIndex] : ''
+  let nextLetter = word ? word[nextLetterIndex] : ''
 
   const incorrectLetters = !word.includes(input)
+  if (incorrectLetters) nextLetter = '⌫'
 
   function type(letter: string) {
     let newInput = input + '' + letter
@@ -262,43 +354,76 @@ function App() {
 
   return (<APP>
     <SCREEN>
-      <Title><kbd>🇬🇧 en</kbd> -&gt; <kbd>🇸🇩 ar</kbd></Title>
-      <SECTION>
-        <DICT placeholder="select a word" onChange={e => setDictIndex(Number.parseInt(e.target.value))} value={dictIndex}>
-          <option value="-1"></option>
-          {englishWords.map((en, index) => (<option value={index}>
-            {(Object.entries(EMOJIS).find(([entryEmoji, entryWords]) => entryWords.includes(en)) || [''])[0] + ' '}
-            {en}
-          </option>))}
-        </DICT>
-      </SECTION>
-      <SECTION>
-        <NEXT style={{ opacity: dictIndex ? 1 : 0 }} onClick={() => [setDictIndex(0), setInput('')]}>⇤</NEXT>
-        <NEXT onClick={() => [setDictIndex(dictIndex - 1), setInput('')]}>⇠</NEXT>
-        <NUM>{dictIndex}</NUM>
-        <input type="range" min={0} max={englishWords.length - 1} value={dictIndex} onChange={e => [setDictIndex(Number.parseInt(e.target.value)), setInput('')]} />
+      <Title><kbd>🇬🇧 en</kbd> ⇒ <kbd>عر 🇸🇩</kbd></Title>
+      <SECTION style={{ display: 'flex', alignItems: 'center' }}>
+        {dictIndex >= 0
+          ? (<>
+              <NEXT style={{ opacity: dictIndex ? 1 : 0 }} onClick={() => [setDictIndex(0), setInput('')]}>⇤</NEXT>
+              <NEXT onClick={() => [setDictIndex(dictIndex - 1), setInput('')]}>⇠</NEXT>
+              <NUM>{dictIndex + 1}</NUM>
+            </>)
+          : (<>
+            </>)}
+        <Progress type="range" min={0} max={englishWords.length - 1} value={dictIndex} onChange={e => [setDictIndex(Number.parseInt(e.target.value)), setInput('')]} />
+        <NUM>{englishWords.length}</NUM>
         {dictIndex < (englishWords.length - 1) ? <NEXT onClick={() => [setDictIndex(dictIndex + 1), setInput('')]}>⇢</NEXT> : null}
       </SECTION>
-      <SECTION>
-        <WORD>{word}</WORD>
-        <WORD style={{ color: '#888' }}>{transliterate(word)}</WORD>
-        <Progress type="range" min={0} max={word.length} value={input.length} />
-      </SECTION>
-      <SECTION>
-        <INPUT value={input} onChange={e => setInput(e.target.value)} isCorrect={input === word} />
-        {input?.length
-          ? (input === word
-              ? <NEXT onClick={() => [setDictIndex(dictIndex + 1), setInput('')]}>✅</NEXT>
-              : <NEXT onClick={() => setInput('')}>❌</NEXT>)
-          : null}
+      <SECTION style={{ display: 'flex', justifyContent: 'center' }}>
+        <div>
+          <DICT placeholder="select a word" onChange={e => [setDictIndex(Number.parseInt(e.target.value)), setInput('')]} value={dictIndex} noValue={dictIndex < 0}>
+            <option value="-1">select a word</option>
+            {englishWords.map((en, index) => (<option value={index}>
+              {(Object.entries(EMOJIS).find(([entryEmoji, entryWords]) => entryWords.includes(en)) || [''])[0] + ' '}
+              {en}
+            </option>))}
+          </DICT>
+        </div>
+        {dictIndex >= 0 ? <span style={{ padding: '1em', fontWeight: 'bold' }}>⇒</span> : null}
+        <div>
+          {dictIndex >= 0 ? <SECTION>
+            <WORDS style={{ display: 'flex', flexDirection: 'column' }}>
+              <WORD
+                onClick={() => {
+                  // const synth = window.speechSynthesis
+                  // let utter = new SpeechSynthesisUtterance(transliterate(word))
+                  // utter.lang = 'en-GB'
+                  // // let utter = new SpeechSynthesisUtterance(word)
+                  // // utter.lang = 'ar-XA'
+                  // synth.speak(utter)
+                }}>
+                {word}
+              </WORD>
+              <WORD style={{ color: '#444' }}>{word.split('').map(char => transliterate(char)).join('')}</WORD>
+            </WORDS>
+          </SECTION> : null}
+        </div>
       </SECTION>
     </SCREEN>
-    {word ? <KBD>
+    <KBD show={!!word}>
+      <Row>
+        {word ? <SECTION>
+          <div style={{ display: 'flex', justifyContent: 'space-evenly' }}>
+            <INPUT value={input} onChange={e => setInput(e.target.value)} isCorrect={input === word} />
+            {input?.length
+              ? (input === word
+                  ? <NEXT onClick={() => [setDictIndex(dictIndex + 1), setInput('')]}>✅</NEXT>
+                  : <NEXT onClick={() => setInput('')}>❌</NEXT>)
+              : null}
+          </div>
+        </SECTION> : null}
+      </Row>
       {keyRows.map(row => (<Row>
-        {row.map(letter => <KEY highlight={letter === nextLetter} wordContainsLetter={word.includes(letter)} typesComplete={input.includes(letter)} onClick={() => type(letter)}>{letter}</KEY>)}
+        {row.map(letter => (<KEY
+          highlight={letter === nextLetter}
+          wordContainsLetter={word.includes(letter)}
+          typesComplete={input.includes(letter)}
+          onClick={() => type(letter)}>
+          {letter}
+          <TRANSLIT>{transliterate(letter)}</TRANSLIT>
+        </KEY>))}
       </Row>))}
-    </KBD> : null}
-
+    </KBD>
+    <Heatmap />
   </APP>)
     // jigsaw
     // <Piece style={{ background: 'url(logo192.png)', clipPath: 'polygon(0 0, 0 40%, 20% 35%, 20% 65%, 0 60%, 0 100%, 100% 100%, 100% 0)' }} />
